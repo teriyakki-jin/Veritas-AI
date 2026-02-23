@@ -10,3 +10,6 @@ python-multipart
 rank_bm25
 sentence-transformers
 huggingface_hub
+nltk>=3.8.1
+tqdm>=4.65.0
+numpy>=1.24.0
