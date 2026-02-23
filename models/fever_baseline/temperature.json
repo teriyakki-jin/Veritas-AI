@@ -1,0 +1,7 @@
+{
+  "temperature": 1.0872870683670044,
+  "task": "fever",
+  "data_path": "data/fever/valid.jsonl",
+  "num_samples": 500,
+  "batch_size": 32
+}

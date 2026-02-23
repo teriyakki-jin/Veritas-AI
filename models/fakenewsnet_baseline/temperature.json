@@ -1,0 +1,7 @@
+{
+  "temperature": 1.675514817237854,
+  "task": "fnn",
+  "data_path": "data/welfake/test.jsonl",
+  "num_samples": 500,
+  "batch_size": 32
+}

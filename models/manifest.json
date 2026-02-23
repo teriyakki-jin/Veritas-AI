@@ -1,0 +1,183 @@
+{
+  "liar": [
+    {
+      "path": "models\\liar_baseline\\config.json",
+      "size": 882,
+      "sha256": "19cc3ffdad2b63208560575092858fc375db58d16a71aba7de32eb828f8fc2ea"
+    },
+    {
+      "path": "models\\liar_baseline\\label_map.json",
+      "size": 92,
+      "sha256": "752fece756dd0bcb7565b6f7e9d295998725793fef0ddd9a6db5ff70855c9ac2"
+    },
+    {
+      "path": "models\\liar_baseline\\model.safetensors",
+      "size": 267844872,
+      "sha256": "e2399e6cee3f161bcee2c3893d3f3ad7516e4ffa396050b4b48ebe163b0a3aaf"
+    },
+    {
+      "path": "models\\liar_baseline\\temperature.json",
+      "size": 145,
+      "sha256": "13d502757d715b3c06d8d206982a34cea19d778bd6d096b4469f79f476039c5f"
+    },
+    {
+      "path": "models\\liar_baseline\\test_results.json",
+      "size": 228,
+      "sha256": "d16797bd7affbcde6e3c8fb8eb93871b666aeb828cee7e3cebc1587436341069"
+    },
+    {
+      "path": "models\\liar_baseline\\tokenizer.json",
+      "size": 711661,
+      "sha256": "f83a7f24eee69f73e1a5cad5a09dac6e3c6731c461540cb3498b22285d3ca6ed"
+    },
+    {
+      "path": "models\\liar_baseline\\tokenizer_config.json",
+      "size": 322,
+      "sha256": "797ed9ba72b500001971b827b0040b8743def8ec38f9cd4cda4c4945734d3596"
+    }
+  ],
+  "fever": [
+    {
+      "path": "models\\fever_baseline\\config.json",
+      "size": 768,
+      "sha256": "bb09fa9637f1e87f92bd77ef1ed2453e6129214542910457f22c2f04b85693fd"
+    },
+    {
+      "path": "models\\fever_baseline\\eval_results.json",
+      "size": 230,
+      "sha256": "f1ae27e6ba396ebe0e4018c959129b74908428a7d5de9ba6be302c3dedffc35f"
+    },
+    {
+      "path": "models\\fever_baseline\\label_map.json",
+      "size": 51,
+      "sha256": "059ed0ce4abda4d8d8531c9c37a99f5f53ea542be1edf2c233dca50ce089262f"
+    },
+    {
+      "path": "models\\fever_baseline\\model.safetensors",
+      "size": 267835644,
+      "sha256": "d527fd9778eccfafaa37f7b63299c282b7f17bd7ccaa0641547f8055e0b95fe4"
+    },
+    {
+      "path": "models\\fever_baseline\\temperature.json",
+      "size": 147,
+      "sha256": "6caeb7b4544f7e60f1eac33fdc37296915869133ab587688c0fc900f2443c37f"
+    },
+    {
+      "path": "models\\fever_baseline\\tokenizer.json",
+      "size": 711396,
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+    },
+    {
+      "path": "models\\fever_baseline\\tokenizer_config.json",
+      "size": 322,
+      "sha256": "797ed9ba72b500001971b827b0040b8743def8ec38f9cd4cda4c4945734d3596"
+    }
+  ],
+  "fnn": [
+    {
+      "path": "models\\fakenewsnet_baseline\\config.json",
+      "size": 663,
+      "sha256": "d6e3e3bb5f192cabf4fb62d83c3ae723fd01a531dc09faac508edd6850734471"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\label_map.json",
+      "size": 22,
+      "sha256": "2f56b2d0096ce1e230a0b5d12ea77b0852168729c5402fe314a9d83b5890433d"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\model.safetensors",
+      "size": 267832560,
+      "sha256": "f8e869478802ba4b7e86b347839d239bc44da0eff35bfca9edb5ccf58211371e"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\temperature.json",
+      "size": 145,
+      "sha256": "4586fdbd1f2500dd353026c3070aeea918b0d4ca4df7e5578b2b58a7b82e77ca"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\test_results.json",
+      "size": 231,
+      "sha256": "2a627c9470646f235631329bbfda35b4e6372f64c28e3bfda2ef25cf2e8e2186"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\tokenizer.json",
+      "size": 711396,
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\tokenizer_config.json",
+      "size": 322,
+      "sha256": "797ed9ba72b500001971b827b0040b8743def8ec38f9cd4cda4c4945734d3596"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\config.json",
+      "size": 691,
+      "sha256": "e780d86726a90e86c0d4a46bdea4d53c6d4192d5ec3c1539363fec0df45d5681"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\model.safetensors",
+      "size": 267832560,
+      "sha256": "7298c234c28803024a3aada2fa1746ca7af1c4e7c51b5936c3b67c6c16db0e77"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\optimizer.pt",
+      "size": 535724875,
+      "sha256": "dae00ea7549bf9ed11bd9b3b41f3696f75adb4348b7f88d457ee0aa960937873"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\rng_state.pth",
+      "size": 14391,
+      "sha256": "bae5aa3604190683a5c86b333ab3c66bd90611361dd7c946228afceef26f8e91"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\scheduler.pt",
+      "size": 1465,
+      "sha256": "d776392192a597eef61b2a69a9967efb275d6d03967ca706de1b39b68bda1656"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\trainer_state.json",
+      "size": 22943,
+      "sha256": "1336e9a87963ceb9a10af470874008c5d694cf267f298bf6cfb9911e24223c97"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-1160\\training_args.bin",
+      "size": 5201,
+      "sha256": "9a92256710b898ffe56079c8a8b35d362231f20e73b3cfb91253236d8867af29"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\config.json",
+      "size": 691,
+      "sha256": "e780d86726a90e86c0d4a46bdea4d53c6d4192d5ec3c1539363fec0df45d5681"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\model.safetensors",
+      "size": 267832560,
+      "sha256": "00af657d951e43f9698693d96c69d4f8f59a5d305d9b31ee62b2eb819630eda4"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\optimizer.pt",
+      "size": 535724875,
+      "sha256": "6f045d95fca9220fe29c496b44e4d6f3016882c8b699d407aa9ad66d1317940a"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\rng_state.pth",
+      "size": 14391,
+      "sha256": "cfc526400e5ba93be08bb536f1273667cfda0c8e6644badf41975685bb4e8f2e"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\scheduler.pt",
+      "size": 1465,
+      "sha256": "6fea4737a35993392bb2559377331e60803d3c93a0d6d3cb6f15fee9e31d78e4"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\trainer_state.json",
+      "size": 45544,
+      "sha256": "29a695c3afb00d9da727e8429634aef655e521149713c2a35c69ccafb767d275"
+    },
+    {
+      "path": "models\\fakenewsnet_baseline\\checkpoint-2320\\training_args.bin",
+      "size": 5201,
+      "sha256": "9a92256710b898ffe56079c8a8b35d362231f20e73b3cfb91253236d8867af29"
+    }
+  ]
+}

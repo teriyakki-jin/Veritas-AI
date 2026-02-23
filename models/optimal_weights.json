@@ -1,0 +1,20 @@
+{
+  "num_samples": 15,
+  "step": 0.5,
+  "best": {
+    "weights": {
+      "liar": 0.0,
+      "fever": 0.5,
+      "fnn": 0.5
+    },
+    "mse": 0.16168649999999998,
+    "mae": 0.32838666666666666
+  },
+  "default": {
+    "weights": {
+      "liar": 0.35,
+      "fever": 0.4,
+      "fnn": 0.25
+    }
+  }
+}

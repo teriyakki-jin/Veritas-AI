@@ -1,0 +1,12 @@
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.12.0
+pandas>=2.0.0
+scikit-learn>=1.2.0
+fastapi>=0.95.0
+pydantic>=2.0.0
+uvicorn>=0.22.0
+python-multipart
+rank_bm25
+sentence-transformers
+huggingface_hub

@@ -1,0 +1,7 @@
+{
+  "temperature": 1.522672176361084,
+  "task": "liar",
+  "data_path": "data/liar/valid.jsonl",
+  "num_samples": 1284,
+  "batch_size": 32
+}

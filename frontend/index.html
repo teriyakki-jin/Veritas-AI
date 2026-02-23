@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactCheck AI - Premium Verification</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FactCheck AI</h1>
+            <p>Advanced multi-model fake news detection system powered by LIAR, FEVER, and FakeNewsNet.</p>
+        </header>
+
+        <main>
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="single">Single Verification</button>
+                <button class="tab-btn" data-tab="batch">Batch Verification</button>
+            </div>
+
+            <!-- Single Verification Panel -->
+            <section id="single-tab" class="tab-content active">
+                <div class="glass-panel">
+                    <div class="controls-group">
+                        <div class="input-wrapper">
+                            <label for="claimInput">Enter a claim to verify</label>
+                            <input type="text" id="claimInput" placeholder="e.g., The Eiffel Tower is in Rome" autocomplete="off">
+                        </div>
+                        <div style="align-self: flex-end;">
+                            <button id="singleVerifyBtn">
+                                Verify Claim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Batch Verification Panel -->
+            <section id="batch-tab" class="tab-content">
+                <div class="glass-panel">
+                    <div class="controls-group" style="flex-direction: column; align-items: stretch;">
+                        <label for="batchInput">Enter multiple claims (one per line)</label>
+                        <textarea id="batchInput" rows="6" placeholder="The Earth is flat&#10;Vaccines cause autism&#10;Python is a programming language"></textarea>
+                        <div style="text-align: right;">
+                            <button id="batchVerifyBtn">
+                                Verify Batch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" style="display: none; text-align: center; margin: 2rem 0;">
+                <div class="loading-spinner" style="margin: 0 auto;"></div>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Analyzing claims against knowledge base...</p>
+            </div>
+
+            <!-- Results Area -->
+            <div id="resultsArea"></div>
+
+        </main>
+    </div>
+
+    <!-- Main Logic -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

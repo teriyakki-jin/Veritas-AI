@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+output.txt
+nul
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Project artifacts (large/local)
+data/
+liar_dataset/
+liar_dataset.zip
+politifact_fake.csv
+notebooks/*.zip
+
+# Model binaries (too large for Git, use download_models.py)
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.onnx
+models/retrieval_index.pkl
+models/**/checkpoint-*/
+
+# Keep model config/metadata in Git
+!models/**/config.json
+!models/**/tokenizer.json
+!models/**/tokenizer_config.json
+!models/**/label_map.json
+!models/**/temperature.json
+!models/**/*_results.json
+!models/*.json
+
+# Optional: ignore generated result files
+results/

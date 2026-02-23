@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\" -c \"from src.models.inference import FactCheckPipeline; p = FactCheckPipeline\\(\\); p.load\\(\\); print\\(''Pipeline loaded successfully''\\)\")"
+    ]
+  }
+}
