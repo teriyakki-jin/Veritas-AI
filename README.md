@@ -7,6 +7,7 @@ LIAR + FEVER + FakeNewsNet(WELFake) 기반의 통합 팩트체킹 시스템입�
 - 3개 분류 모델(LIAR/FEVER/FNN) 병렬 추론
 - 가중치 기반 fusion으로 최종 credibility score/verdict 산출
 - FastAPI 기반 `/verify`, `/verify/batch`, `/health` 제공
+- 기사 분석 API: URL/본문 입력 -> 핵심 claim 추출 -> claim별 검증 (`/analyze/article`)
 
 ## 디렉토리
 - `src/models/`: 학습/추론/퓨전/캘리브레이션
@@ -90,6 +91,21 @@ curl -X POST http://127.0.0.1:8000/verify ^
 curl -X POST http://127.0.0.1:8000/verify/batch ^
   -H "Content-Type: application/json" ^
   -d "{\"claims\":[\"The earth is flat\",\"The Eiffel Tower is in Paris\"]}"
+```
+
+### 기사 분석
+```powershell
+curl -X POST http://127.0.0.1:8000/analyze/article ^
+  -H "Content-Type: application/json" ^
+  -d "{\"url\":\"https://example.com/news\"}"
+```
+
+또는 본문 직접 입력:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/analyze/article ^
+  -H "Content-Type: application/json" ^
+  -d "{\"article_text\":\"The Eiffel Tower is in Paris. NASA announced 3 new missions in 2026.\"}"
 ```
 
 ## 모델 파일 관리

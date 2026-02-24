@@ -15,6 +15,7 @@ import mimetypes
 import os
 import sys
 import time
+from statistics import mean
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -30,6 +31,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.dirname(__file__))
 
 from models.inference import FactCheckPipeline
+from models.fusion import score_to_verdict
+from utils.article_scraper import scrape_article
+from utils.claim_extractor import extract_claims
 
 # Global pipeline instance
 pipeline: Optional[FactCheckPipeline] = None
@@ -148,6 +152,30 @@ class HealthResponse(BaseModel):
     retrieval_docs: int
 
 
+class AnalyzeArticleRequest(BaseModel):
+    url: Optional[str] = Field(None, description="Article URL (http/https)")
+    article_text: Optional[str] = Field(None, description="Raw article text if URL scraping is not used")
+    top_k_evidence: int = Field(3, ge=1, le=10)
+    max_claims: int = Field(5, ge=1, le=15)
+
+
+class ArticleSource(BaseModel):
+    url: Optional[str] = None
+    title: Optional[str] = None
+    text_length: int
+    text_preview: str
+
+
+class AnalyzeArticleResponse(BaseModel):
+    source: ArticleSource
+    extracted_claims: List[str]
+    claim_results: List[VerifyResponse]
+    article_credibility_score: float
+    article_verdict: str
+    extraction_time_ms: float
+    verification_time_ms: float
+
+
 # --- Endpoints ---
 
 @app.get("/health", response_model=HealthResponse)
@@ -218,6 +246,78 @@ async def verify_batch(req: BatchVerifyRequest):
         raise HTTPException(status_code=500, detail=f"Batch verification failed: {exc}") from exc
 
     return [_to_verify_response(r) for r in raw_results]
+
+
+@app.post("/analyze/article", response_model=AnalyzeArticleResponse)
+async def analyze_article(req: AnalyzeArticleRequest):
+    """Scrape (or accept text), extract claims, and verify each claim."""
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+
+    has_url = bool(req.url and req.url.strip())
+    has_text = bool(req.article_text and req.article_text.strip())
+    if not has_url and not has_text:
+        raise HTTPException(status_code=422, detail="Either 'url' or 'article_text' must be provided")
+
+    extraction_t0 = time.perf_counter()
+    title = None
+    source_url = req.url.strip() if has_url else None
+
+    try:
+        if has_url:
+            scraped = await asyncio.to_thread(scrape_article, req.url.strip())
+            article_text = scraped.text
+            title = scraped.title
+            source_url = scraped.url
+        else:
+            article_text = req.article_text.strip()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Article extraction failed: {exc}") from exc
+
+    claims = extract_claims(article_text, max_claims=req.max_claims)
+    extraction_elapsed = (time.perf_counter() - extraction_t0) * 1000
+
+    if not claims:
+        raise HTTPException(status_code=422, detail="No verifiable claims could be extracted from article")
+
+    verify_t0 = time.perf_counter()
+
+    def _verify_claims():
+        results = []
+        for claim in claims:
+            t0 = time.perf_counter()
+            result = pipeline.verify(claim, top_k_evidence=req.top_k_evidence)
+            result["inference_time_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            results.append(result)
+        return results
+
+    try:
+        raw_results = await asyncio.to_thread(_verify_claims)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Claim verification failed: {exc}") from exc
+
+    verification_elapsed = (time.perf_counter() - verify_t0) * 1000
+    scores = [r["credibility_score"] for r in raw_results]
+    article_score = round(float(mean(scores)), 4) if scores else 0.5
+    article_verdict = score_to_verdict(article_score)
+
+    response_results = [_to_verify_response(r) for r in raw_results]
+    preview = article_text[:280]
+
+    return AnalyzeArticleResponse(
+        source=ArticleSource(
+            url=source_url,
+            title=title,
+            text_length=len(article_text),
+            text_preview=preview,
+        ),
+        extracted_claims=claims,
+        claim_results=response_results,
+        article_credibility_score=article_score,
+        article_verdict=article_verdict,
+        extraction_time_ms=round(extraction_elapsed, 1),
+        verification_time_ms=round(verification_elapsed, 1),
+    )
 
 
 # --- Static Files (MOUNT LAST) ---

@@ -60,3 +60,31 @@ export async function verifyBatch(claims, topK = 3) {
         throw error;
     }
 }
+
+export async function analyzeArticle({ url = '', articleText = '', topK = 3, maxClaims = 5 } = {}) {
+    try {
+        const payload = {
+            top_k_evidence: topK,
+            max_claims: maxClaims
+        };
+
+        if (url && url.trim()) payload.url = url.trim();
+        if (articleText && articleText.trim()) payload.article_text = articleText.trim();
+
+        const response = await fetch(endpoint('/analyze/article'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Article analysis failed');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+    }
+}

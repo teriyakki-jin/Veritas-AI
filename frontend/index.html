@@ -19,6 +19,7 @@
             <div class="tabs">
                 <button class="tab-btn active" data-tab="single">Single Verification</button>
                 <button class="tab-btn" data-tab="batch">Batch Verification</button>
+                <button class="tab-btn" data-tab="article">Article Analysis</button>
             </div>
 
             <!-- Single Verification Panel -->
@@ -47,6 +48,25 @@
                         <div style="text-align: right;">
                             <button id="batchVerifyBtn">
                                 Verify Batch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Article Analysis Panel -->
+            <section id="article-tab" class="tab-content">
+                <div class="glass-panel">
+                    <div class="controls-group" style="flex-direction: column; align-items: stretch;">
+                        <label for="articleUrlInput">Article URL (optional)</label>
+                        <input type="url" id="articleUrlInput" placeholder="https://example.com/news/article">
+
+                        <label for="articleTextInput">Article Text (optional, use when URL fails)</label>
+                        <textarea id="articleTextInput" rows="8" placeholder="Paste article body text here..."></textarea>
+
+                        <div style="text-align: right;">
+                            <button id="articleAnalyzeBtn">
+                                Analyze Article
                             </button>
                         </div>
                     </div>
