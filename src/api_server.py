@@ -16,6 +16,7 @@ import os
 import sys
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -36,6 +37,27 @@ pipeline: Optional[FactCheckPipeline] = None
 # Force correct MIME type for JS modules (Windows fix)
 mimetypes.init()
 mimetypes.add_type("application/javascript", ".js")
+
+
+def _load_dotenv() -> None:
+    """Load .env from project root without extra dependencies."""
+    root = Path(__file__).resolve().parent.parent
+    env_path = root / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_dotenv()
 
 
 def _parse_cors_origins() -> List[str]:
@@ -71,7 +93,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Fact-Checking API",
     description="Combined LIAR + FEVER + FakeNewsNet fact-checking system",
-    version="1.1.0",
+    version="1.1.1",
     lifespan=lifespan,
 )
 
@@ -148,7 +170,7 @@ def _to_verify_response(result: dict) -> VerifyResponse:
         verdict=result["verdict"],
         evidence=[EvidenceItem(**e) for e in result["evidence"]],
         model_details=result["model_details"],
-        inference_time_ms=result.get("inference_time_ms")
+        inference_time_ms=result.get("inference_time_ms"),
     )
 
 
@@ -207,13 +229,16 @@ class SPAStaticFiles(StaticFiles):
             response.headers["content-type"] = "application/javascript"
         return response
 
+
 @app.get("/")
 async def read_index():
-    return FileResponse('frontend/index.html')
+    return FileResponse("frontend/index.html")
+
 
 app.mount("/", SPAStaticFiles(directory="frontend"), name="frontend")
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("src.api_server:app", host="0.0.0.0", port=8000, reload=True)

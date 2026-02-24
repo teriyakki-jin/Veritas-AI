@@ -53,3 +53,6 @@ models/**/checkpoint-*/
 
 # Optional: ignore generated result files
 results/
+
+# Local env
+.env

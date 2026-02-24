@@ -11,6 +11,7 @@ LIAR + FEVER + FakeNewsNet(WELFake) 기반의 통합 팩트체킹 시스템입�
 ## 디렉토리
 - `src/models/`: 학습/추론/퓨전/캘리브레이션
 - `src/api_server.py`: API 서버
+- `scripts/run_api.py`: Windows/WSL 공통 API 실행 런처
 - `data/`: 정규화된 데이터셋
 - `models/`: 학습 결과물 및 retrieval 인덱스
 - `notebooks/`: Colab 학습 노트북
@@ -30,10 +31,46 @@ pip install -r requirements.txt
 python src\models\inference.py
 ```
 
-### 2) API 서버
+### 2) API 서버 (권장: 공통 런처)
+Windows/WSL 모두 아래 명령으로 실행 가능:
+
+```bash
+python scripts/run_api.py
+```
+
+환경 변수:
+- `HOST` (기본 `0.0.0.0`)
+- `PORT` (기본 `8000`)
+- `RELOAD` (`1`이면 `--reload` 활성화)
+
+예시:
+
+```bash
+HOST=127.0.0.1 PORT=8000 RELOAD=1 python scripts/run_api.py
+```
+
+### 3) API 서버 (직접 실행)
 ```powershell
 uvicorn src.api_server:app --host 0.0.0.0 --port 8000
 ```
+
+## 환경 변수 설정
+`src/api_server.py`는 프로젝트 루트의 `.env`를 자동 로드합니다.
+
+```bash
+cp .env.example .env
+```
+
+`.env` 예시:
+
+```env
+CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+```
+
+## 프론트엔드 API URL
+프론트엔드는 기본적으로 **same-origin(relative path)** 으로 API를 호출합니다.
+- 예: 같은 서버(`127.0.0.1:8000`)에서 제공되면 별도 설정 불필요
+- 별도 API 도메인이 필요하면 `window.__APP_CONFIG__.apiBaseUrl` 또는 `window.API_BASE_URL`를 주입해 오버라이드 가능
 
 ## API 예시
 ### Health

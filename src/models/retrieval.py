@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import pickle
@@ -192,12 +193,14 @@ class RetrievalSystem:
     @staticmethod
     def _extract_gold_pages(evidence_raw: List) -> Set[str]:
         gold_pages: Set[str] = set()
-
         for ev in evidence_raw:
-            try:
-                parsed = eval(ev) if isinstance(ev, str) else ev
-            except Exception:
-                continue
+            if isinstance(ev, str):
+                try:
+                    parsed = ast.literal_eval(ev)
+                except (ValueError, SyntaxError):
+                    continue
+            else:
+                parsed = ev
 
             if not isinstance(parsed, list):
                 continue
