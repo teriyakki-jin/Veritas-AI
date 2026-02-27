@@ -11,6 +11,7 @@ Run:
 """
 
 import asyncio
+import json
 import logging
 import mimetypes
 import os
@@ -22,12 +23,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, JSONResponse, StreamingResponse
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -269,6 +270,89 @@ async def health_check(pipeline: FactCheckPipeline = Depends(_get_pipeline)):
         status="ok",
         active_models=list(pipeline.models.keys()),
         retrieval_docs=len(pipeline.retriever.corpus) if pipeline.retriever else 0,
+    )
+
+
+def _sse(event: str, data: dict) -> str:
+    """Format a Server-Sent Event frame."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@app.get("/verify/stream")
+async def verify_stream(
+    claim: str = Query(..., min_length=1, description="Claim text to verify"),
+    top_k_evidence: int = Query(3, ge=1, le=10),
+    pipeline: FactCheckPipeline = Depends(_get_pipeline),
+):
+    """Stream verification progress via Server-Sent Events.
+
+    Events emitted in order:
+      retrieving  → BM25 search started
+      evidence    → evidence docs retrieved
+      verifying   → per-model inference started (one per model)
+      model_done  → per-model result (one per model)
+      fusing      → fusion started
+      result      → final VerifyResponse payload
+      done        → stream complete
+      error       → unrecoverable error
+    """
+    claim = _normalize_claim(claim)
+
+    async def generate():
+        try:
+            yield _sse("retrieving", {"message": "Retrieving evidence..."})
+
+            evidence = await asyncio.to_thread(pipeline.retrieve_evidence, claim, top_k_evidence)
+            ev_list = [
+                {"doc_id": e["doc_id"], "score": e["score"], "snippet": e["text"]}
+                for e in evidence
+            ]
+            yield _sse("evidence", {"count": len(ev_list), "evidence": ev_list})
+
+            evidence_texts = [e["text"] for e in evidence]
+            model_outputs = {}
+
+            for model_name in pipeline.models:
+                yield _sse("verifying", {"model": model_name})
+                if model_name == "fever":
+                    inp = claim + " [SEP] " + " [SEP] ".join(evidence_texts[:3]) if evidence_texts else claim
+                else:
+                    inp = claim
+                logits = await asyncio.to_thread(pipeline.predict_single, model_name, inp)
+                if logits.size > 0:
+                    model_outputs[model_name] = logits
+                yield _sse("model_done", {"model": model_name})
+
+            yield _sse("fusing", {"message": "Computing final verdict..."})
+
+            if model_outputs and pipeline.fusion:
+                fusion_result = pipeline.fusion.fuse(model_outputs)
+            else:
+                fusion_result = {"credibility_score": 0.5, "verdict": "UNKNOWN (no models)", "model_details": {}}
+
+            fusion_result = pipeline._enrich_model_details(fusion_result)
+            result = {
+                "claim": claim,
+                "evidence": ev_list,
+                "credibility_score": fusion_result["credibility_score"],
+                "verdict": fusion_result["verdict"],
+                "model_details": fusion_result["model_details"],
+            }
+            pipeline._cache.put(claim, top_k_evidence, result)
+
+            yield _sse("result", result)
+            yield _sse("done", {})
+
+        except HTTPException as exc:
+            yield _sse("error", {"message": exc.detail})
+        except Exception:
+            logger.exception("Stream verification error")
+            yield _sse("error", {"message": "Verification failed. Please try again."})
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

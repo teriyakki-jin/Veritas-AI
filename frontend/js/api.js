@@ -58,6 +58,29 @@ export async function verifyBatch(claims, topK = 3) {
     }
 }
 
+/**
+ * Stream verification progress via SSE.
+ * onEvent(eventName, data) is called for each SSE event.
+ * Returns the EventSource so the caller can close it if needed.
+ */
+export function verifyClaimStream(claim, topK = 3, onEvent) {
+    const params = new URLSearchParams({ claim, top_k_evidence: topK });
+    const es = new EventSource(endpoint(`/verify/stream?${params}`));
+
+    ['retrieving', 'evidence', 'verifying', 'model_done', 'fusing', 'result', 'error'].forEach((evt) => {
+        es.addEventListener(evt, (e) => onEvent(evt, JSON.parse(e.data)));
+    });
+
+    es.addEventListener('done', () => es.close());
+
+    es.onerror = () => {
+        es.close();
+        onEvent('error', { message: 'Connection failed. Please try again.' });
+    };
+
+    return es;
+}
+
 export async function analyzeArticle({ url = '', articleText = '', topK = 3, maxClaims = 5 } = {}) {
     try {
         const payload = {

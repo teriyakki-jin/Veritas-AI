@@ -385,3 +385,39 @@ a:hover {
         align-items: stretch;
     }
 }
+
+/* Streaming status */
+.stream-status {
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.stream-steps {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.stream-step {
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: color 0.3s;
+}
+
+.step-pending { color: var(--text-secondary); }
+
+.step-active {
+    color: var(--accent-color);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.step-done { color: var(--success-color); }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+}

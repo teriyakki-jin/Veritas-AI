@@ -1,4 +1,4 @@
-import { verifyClaim, verifyBatch, analyzeArticle } from './api.js';
+import { verifyClaim, verifyBatch, analyzeArticle, verifyClaimStream } from './api.js';
 
 // DOM Elements
 const claimInput = document.getElementById('claimInput');
@@ -60,22 +60,70 @@ function switchTab(tabId) {
     resultsArea.innerHTML = '';
 }
 
-// Single Verification Handler
-async function handleSingleVerify() {
+// Single Verification Handler — uses SSE streaming
+function handleSingleVerify() {
     const claim = claimInput.value.trim();
     if (!claim) return showAlert('Please enter a claim to verify.', 'error');
 
     setLoading(true);
     resultsArea.innerHTML = '';
 
-    try {
-        const result = await verifyClaim(claim);
-        renderResult(result);
-    } catch (error) {
-        showAlert(error.message, 'error');
-    } finally {
-        setLoading(false);
-    }
+    const statusEl = document.createElement('div');
+    statusEl.className = 'stream-status glass-panel';
+    statusEl.innerHTML = _renderStreamStatus('idle');
+    resultsArea.appendChild(statusEl);
+
+    const modelsDone = new Set();
+
+    verifyClaimStream(claim, 3, (event, data) => {
+        switch (event) {
+            case 'retrieving':
+                statusEl.innerHTML = _renderStreamStatus('retrieving');
+                break;
+            case 'evidence':
+                statusEl.innerHTML = _renderStreamStatus('evidence', { count: data.count });
+                break;
+            case 'verifying':
+                statusEl.innerHTML = _renderStreamStatus('verifying', { model: data.model, done: modelsDone });
+                break;
+            case 'model_done':
+                modelsDone.add(data.model);
+                statusEl.innerHTML = _renderStreamStatus('verifying', { model: data.model, done: modelsDone });
+                break;
+            case 'fusing':
+                statusEl.innerHTML = _renderStreamStatus('fusing');
+                break;
+            case 'result':
+                statusEl.remove();
+                renderResult(data);
+                setLoading(false);
+                break;
+            case 'error':
+                statusEl.remove();
+                showAlert(data.message, 'error');
+                setLoading(false);
+                break;
+        }
+    });
+}
+
+function _renderStreamStatus(step, ctx = {}) {
+    const steps = [
+        { key: 'retrieving', label: 'Retrieving evidence' },
+        { key: 'evidence',   label: ctx.count != null ? `Evidence found (${ctx.count} docs)` : 'Evidence found' },
+        { key: 'verifying',  label: 'Running models' },
+        { key: 'fusing',     label: 'Computing verdict' },
+    ];
+    const order = ['retrieving', 'evidence', 'verifying', 'fusing'];
+    const currentIdx = order.indexOf(step);
+
+    return `<div class="stream-steps">${steps.map((s, i) => {
+        let cls = 'step-pending';
+        if (i < currentIdx) cls = 'step-done';
+        else if (i === currentIdx) cls = 'step-active';
+        const icon = cls === 'step-done' ? '✓' : cls === 'step-active' ? '⟳' : '○';
+        return `<span class="stream-step ${cls}">${icon} ${escapeHtml(s.label)}</span>`;
+    }).join('')}</div>`;
 }
 
 // Batch Verification Handler
