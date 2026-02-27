@@ -77,6 +77,25 @@ _RATE_LIMITS: Dict[str, tuple] = {
 }
 
 
+class AccessLogMiddleware(BaseHTTPMiddleware):
+    """Log every request with method, path, status code, and wall-clock duration."""
+
+    async def dispatch(self, request: Request, call_next):
+        t0 = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+        client_ip = request.client.host if request.client else "unknown"
+        logger.info(
+            "access method=%s path=%s status=%d client=%s duration_ms=%s",
+            request.method,
+            request.url.path,
+            response.status_code,
+            client_ip,
+            duration_ms,
+        )
+        return response
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Sliding-window per-IP rate limiter (no external dependencies)."""
 
@@ -161,6 +180,7 @@ app = FastAPI(
 _cors_origins = _parse_cors_origins()
 _cors_allow_credentials = "*" not in _cors_origins
 
+app.add_middleware(AccessLogMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -400,6 +420,13 @@ async def verify_claim(req: VerifyRequest, pipeline: FactCheckPipeline = Depends
         logger.exception("Claim verification error")
         raise HTTPException(status_code=500, detail="Verification failed. Please try again.") from exc
 
+    logger.info(
+        "verify verdict=%s score=%.3f time_ms=%s claim=%r",
+        result["verdict"],
+        result["credibility_score"],
+        result["inference_time_ms"],
+        claim[:80],
+    )
     return _to_verify_response(result)
 
 
@@ -426,13 +453,21 @@ async def verify_explain(req: VerifyRequest, pipeline: FactCheckPipeline = Depen
         for ev, contrib in zip(result["evidence"], contributions)
     ]
 
+    inference_time_ms = round(elapsed * 1000, 1)
+    logger.info(
+        "explain verdict=%s score=%.3f time_ms=%s claim=%r",
+        result["verdict"],
+        result["credibility_score"],
+        inference_time_ms,
+        claim[:80],
+    )
     return ExplainResponse(
         claim=result["claim"],
         credibility_score=result["credibility_score"],
         verdict=result["verdict"],
         evidence=evidence_explained,
         model_details=result["model_details"],
-        inference_time_ms=round(elapsed * 1000, 1),
+        inference_time_ms=inference_time_ms,
     )
 
 
@@ -481,13 +516,16 @@ async def verify_batch(req: BatchVerifyRequest, pipeline: FactCheckPipeline = De
         return batch_results
 
     try:
+        t0 = time.perf_counter()
         raw_results = await asyncio.to_thread(_run_batch)
+        elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("Batch verification error")
         raise HTTPException(status_code=500, detail="Batch verification failed. Please try again.") from exc
 
+    logger.info("batch count=%d time_ms=%s", len(raw_results), elapsed_ms)
     return [_to_verify_response(r) for r in raw_results]
 
 
