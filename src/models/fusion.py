@@ -25,10 +25,12 @@ FEVER_CREDIBILITY = {0: 1.0, 1: 0.0, 2: 0.5}  # SUPPORTS=1, REFUTES=0, NEI=0.5
 FNN_CREDIBILITY = {0: 0.0, 1: 1.0}  # fake=0, real=1
 
 # Default weights for each model (sum to 1.0)
+# Tuned via grid search (models/optimal_weights_quick.json, 60 samples):
+# LIAR accuracy ~30% (near-random on 6-class) → excluded from fusion score.
 DEFAULT_WEIGHTS = {
-    "liar": 0.35,
-    "fever": 0.40,
-    "fnn": 0.25,
+    "liar": 0.0,
+    "fever": 0.8,
+    "fnn": 0.2,
 }
 
 
