@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+tests/
+*.md
+*.toml
+data/fever/
+data/liar/
+data/welfake/
+models/**/*.safetensors
+models/**/*.bin
+results/
