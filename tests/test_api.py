@@ -1,11 +1,31 @@
 """Tests for src/api_server.py endpoints."""
 
+import json
 import os
 
+import numpy as np
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+def _parse_sse_events(text: str) -> list:
+    """Parse SSE response body into list of {event, data} dicts."""
+    events = []
+    for block in text.strip().split("\n\n"):
+        if not block.strip():
+            continue
+        event_name = None
+        data_str = None
+        for line in block.split("\n"):
+            if line.startswith("event: "):
+                event_name = line[len("event: "):]
+            elif line.startswith("data: "):
+                data_str = line[len("data: "):]
+        if event_name and data_str is not None:
+            events.append({"event": event_name, "data": json.loads(data_str)})
+    return events
 
 
 def _make_mock_pipeline():
@@ -209,3 +229,159 @@ class TestRateLimiting:
         resp = client.post("/verify/batch", json={"claims": ["Over limit."]})
         assert resp.status_code == 429
         assert "Too many requests" in resp.json()["detail"]
+
+
+class TestVerifyStreamEndpoint:
+    def _setup_stream_mocks(self, mock_pipeline):
+        """Configure mock pipeline for stream endpoint."""
+        mock_pipeline.retrieve_evidence.return_value = [
+            {"doc_id": "doc1", "score": 1.5, "text": "Some stream evidence."}
+        ]
+        mock_pipeline.predict_single.return_value = np.array([0.1, 0.2, 0.7])
+        mock_pipeline.fusion.fuse.return_value = {
+            "credibility_score": 0.75,
+            "verdict": "TRUE",
+            "model_details": {},
+        }
+        mock_pipeline._enrich_model_details.return_value = {
+            "credibility_score": 0.75,
+            "verdict": "TRUE",
+            "model_details": {},
+        }
+
+    def test_stream_missing_claim_returns_422(self, client_with_pipeline):
+        client, _ = client_with_pipeline
+        resp = client.get("/verify/stream")
+        assert resp.status_code == 422
+
+    def test_stream_whitespace_claim_returns_422(self, client_with_pipeline):
+        client, _ = client_with_pipeline
+        resp = client.get("/verify/stream?claim=   ")
+        assert resp.status_code == 422
+
+    def test_stream_valid_claim_returns_event_stream(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_stream_mocks(mock_pipeline)
+        resp = client.get("/verify/stream?claim=The+earth+is+round.")
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers["content-type"]
+
+    def test_stream_emits_expected_events_in_order(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_stream_mocks(mock_pipeline)
+        resp = client.get("/verify/stream?claim=Vaccines+are+safe.")
+        events = _parse_sse_events(resp.text)
+        event_names = [e["event"] for e in events]
+
+        for expected in ["retrieving", "evidence", "fusing", "result", "done"]:
+            assert expected in event_names, f"Missing SSE event: {expected}"
+
+        idx = {name: event_names.index(name) for name in ["retrieving", "evidence", "fusing", "result", "done"]}
+        assert idx["retrieving"] < idx["evidence"] < idx["fusing"] < idx["result"] < idx["done"]
+
+    def test_stream_result_event_has_required_fields(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_stream_mocks(mock_pipeline)
+        resp = client.get("/verify/stream?claim=Science+confirms+this.")
+        events = _parse_sse_events(resp.text)
+        result_events = [e for e in events if e["event"] == "result"]
+        assert len(result_events) == 1
+        data = result_events[0]["data"]
+        for field in ["claim", "credibility_score", "verdict", "evidence", "model_details"]:
+            assert field in data, f"Missing field in result event: {field}"
+
+    def test_stream_evidence_event_reports_count(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_stream_mocks(mock_pipeline)
+        resp = client.get("/verify/stream?claim=Climate+change+is+real.")
+        events = _parse_sse_events(resp.text)
+        evidence_events = [e for e in events if e["event"] == "evidence"]
+        assert len(evidence_events) == 1
+        assert evidence_events[0]["data"]["count"] == 1
+
+    def test_stream_emits_verifying_and_model_done_per_model(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_stream_mocks(mock_pipeline)
+        resp = client.get("/verify/stream?claim=Test+model+events.")
+        events = _parse_sse_events(resp.text)
+        model_names = set(mock_pipeline.models.keys())
+        verifying_models = {e["data"]["model"] for e in events if e["event"] == "verifying"}
+        done_models = {e["data"]["model"] for e in events if e["event"] == "model_done"}
+        assert verifying_models == model_names
+        assert done_models == model_names
+
+    def test_stream_503_when_no_pipeline(self, client_no_pipeline):
+        resp = client_no_pipeline.get("/verify/stream?claim=Test+claim.")
+        assert resp.status_code == 503
+
+
+class TestVerifyExplainEndpoint:
+    def _setup_explain_mocks(self, mock_pipeline):
+        """Configure explain_evidence return value."""
+        mock_pipeline.explain_evidence.return_value = [
+            {"contribution": 0.15, "contribution_label": "supports"}
+        ]
+
+    def test_explain_empty_claim_returns_422(self, client_with_pipeline):
+        client, _ = client_with_pipeline
+        resp = client.post("/verify/explain", json={"claim": ""})
+        assert resp.status_code == 422
+
+    def test_explain_whitespace_claim_returns_422(self, client_with_pipeline):
+        client, _ = client_with_pipeline
+        resp = client.post("/verify/explain", json={"claim": "   "})
+        assert resp.status_code == 422
+
+    def test_explain_valid_claim_returns_200(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        resp = client.post("/verify/explain", json={"claim": "The earth is round."})
+        assert resp.status_code == 200
+
+    def test_explain_response_has_required_fields(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        resp = client.post("/verify/explain", json={"claim": "Vaccines are safe."})
+        assert resp.status_code == 200
+        data = resp.json()
+        for field in ["claim", "credibility_score", "verdict", "evidence", "model_details"]:
+            assert field in data, f"Missing field in explain response: {field}"
+
+    def test_explain_evidence_has_contribution_fields(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        resp = client.post("/verify/explain", json={"claim": "Science supports this."})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["evidence"]) > 0
+        ev = data["evidence"][0]
+        assert "contribution" in ev
+        assert "contribution_label" in ev
+
+    def test_explain_contribution_label_is_valid(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        resp = client.post("/verify/explain", json={"claim": "Facts matter here."})
+        assert resp.status_code == 200
+        valid_labels = {"supports", "refutes", "neutral"}
+        for ev in resp.json()["evidence"]:
+            assert ev["contribution_label"] in valid_labels
+
+    def test_explain_contribution_is_float(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        resp = client.post("/verify/explain", json={"claim": "Numbers matter too."})
+        assert resp.status_code == 200
+        for ev in resp.json()["evidence"]:
+            assert isinstance(ev["contribution"], float)
+
+    def test_explain_503_when_no_pipeline(self, client_no_pipeline):
+        resp = client_no_pipeline.post("/verify/explain", json={"claim": "Test claim."})
+        assert resp.status_code == 503
+
+    def test_explain_calls_verify_then_explain_evidence(self, client_with_pipeline):
+        client, mock_pipeline = client_with_pipeline
+        self._setup_explain_mocks(mock_pipeline)
+        client.post("/verify/explain", json={"claim": "Check method calls."})
+        mock_pipeline.verify.assert_called_once()
+        mock_pipeline.explain_evidence.assert_called_once()
