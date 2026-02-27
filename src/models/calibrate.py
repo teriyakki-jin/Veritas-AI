@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -14,6 +15,8 @@ from models.common import FactCheckingDataset
 from models.train_fakenewsnet import FNNDataset
 from models.train_fever import FEVERDataset
 from models.train_liar import LIARDataset
+
+logger = logging.getLogger(__name__)
 
 
 class ModelWithTemperature(nn.Module):
@@ -51,14 +54,14 @@ def _select_dataset(task_name: str, data_path: str, tokenizer, max_samples: int 
 
 
 def calibrate_model(task_name, model_path, data_path, num_labels, batch_size=16, max_samples=0, max_len=128):
-    print(f"Calibrating {task_name} from {model_path}...")
-    print(f"Validation data: {data_path}")
+    logger.info("Calibrating %s from %s...", task_name, model_path)
+    logger.info("Validation data: %s", data_path)
 
     try:
         model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=num_labels)
         tokenizer = AutoTokenizer.from_pretrained(model_path)
     except Exception as e:
-        print(f"Failed to load model: {e}")
+        logger.error("Failed to load model: %s", e)
         return None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -67,7 +70,7 @@ def calibrate_model(task_name, model_path, data_path, num_labels, batch_size=16,
 
     dataset = _select_dataset(task_name, data_path, tokenizer, max_samples=max_samples, max_len=max_len)
     if len(dataset) == 0:
-        print("Dataset is empty; skipping calibration")
+        logger.warning("Dataset is empty; skipping calibration")
         return None
 
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
@@ -75,7 +78,7 @@ def calibrate_model(task_name, model_path, data_path, num_labels, batch_size=16,
     logits_list = []
     labels_list = []
 
-    print(f"Collecting validation logits (samples={len(dataset)})...")
+    logger.info("Collecting validation logits (samples=%s)...", len(dataset))
     with torch.no_grad():
         for batch in tqdm(loader):
             input_ids = batch["input_ids"].to(device)
@@ -105,7 +108,7 @@ def calibrate_model(task_name, model_path, data_path, num_labels, batch_size=16,
     optimizer.step(eval_func)
 
     t_val = max(float(temperature.item()), 0.1)
-    print(f"Optimal Temperature for {task_name}: {t_val:.4f}")
+    logger.info("Optimal Temperature for %s: %.4f", task_name, t_val)
 
     save_path = os.path.join(model_path, "temperature.json")
     with open(save_path, "w", encoding="utf-8") as f:
@@ -121,7 +124,7 @@ def calibrate_model(task_name, model_path, data_path, num_labels, batch_size=16,
             indent=2,
         )
 
-    print(f"Saved to {save_path}")
+    logger.info("Saved to %s", save_path)
     return t_val
 
 

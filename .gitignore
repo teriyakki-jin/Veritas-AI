@@ -39,7 +39,7 @@ notebooks/*.zip
 models/**/*.safetensors
 models/**/*.bin
 models/**/*.onnx
-models/retrieval_index.pkl
+models/retrieval_index.json
 models/**/checkpoint-*/
 
 # Keep model config/metadata in Git

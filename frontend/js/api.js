@@ -16,7 +16,6 @@ export async function checkHealth() {
         if (!response.ok) throw new Error('Health check failed');
         return await response.json();
     } catch (error) {
-        console.error('API Error:', error);
         throw error;
     }
 }
@@ -36,7 +35,6 @@ export async function verifyClaim(claim, topK = 3) {
 
         return await response.json();
     } catch (error) {
-        console.error('API Error:', error);
         throw error;
     }
 }
@@ -56,7 +54,6 @@ export async function verifyBatch(claims, topK = 3) {
 
         return await response.json();
     } catch (error) {
-        console.error('API Error:', error);
         throw error;
     }
 }
@@ -84,7 +81,6 @@ export async function analyzeArticle({ url = '', articleText = '', topK = 3, max
 
         return await response.json();
     } catch (error) {
-        console.error('API Error:', error);
         throw error;
     }
 }

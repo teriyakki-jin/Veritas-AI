@@ -1,7 +1,7 @@
 import ast
 import json
+import logging
 import os
-import pickle
 import re
 from typing import Dict, List, Optional, Set
 
@@ -9,6 +9,8 @@ import nltk
 import numpy as np
 from rank_bm25 import BM25Okapi
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 # Ensure NLTK data (simple tokenizer)
 nltk_data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "nltk_data")
@@ -18,7 +20,7 @@ nltk.data.path.append(nltk_data_dir)
 try:
     nltk.data.find("tokenizers/punkt_tab")
 except (LookupError, OSError):
-    print(f"Downloading punkt_tab to {nltk_data_dir}...")
+    logger.info("Downloading punkt_tab to %s...", nltk_data_dir)
     nltk.download("punkt_tab", download_dir=nltk_data_dir, quiet=True)
 
 try:
@@ -36,7 +38,7 @@ STOPWORDS: Set[str] = {
 
 
 class RetrievalSystem:
-    def __init__(self, index_path: str = "models/retrieval_index.pkl"):
+    def __init__(self, index_path: str = "models/retrieval_index.json"):
         # Double check inside class as well just in case
         try:
             nltk.data.find("tokenizers/punkt_tab")
@@ -73,44 +75,47 @@ class RetrievalSystem:
         self.doc_title_tokens = [set(self._tokenize(doc_id, remove_stopwords=True)) for doc_id in self.doc_ids]
 
     def save_index(self) -> None:
-        """Save BM25 index and metadata to disk."""
+        """Save corpus and doc_ids to disk as JSON. BM25 is rebuilt from corpus on load."""
         os.makedirs(os.path.dirname(self.index_path) or ".", exist_ok=True)
-        with open(self.index_path, "wb") as f:
-            pickle.dump(
+        with open(self.index_path, "w", encoding="utf-8") as f:
+            json.dump(
                 {
-                    "bm25": self.bm25,
                     "corpus": self.corpus,
                     "doc_ids": self.doc_ids,
                 },
                 f,
+                ensure_ascii=False,
             )
-        print(f"Index saved to {self.index_path}")
+        logger.info("Index saved to %s", self.index_path)
 
     def load_index(self) -> bool:
-        """Load BM25 index from disk. Returns True if successful."""
+        """Load corpus/doc_ids from JSON and rebuild BM25 index. Returns True if successful."""
         if not os.path.exists(self.index_path):
-            print(f"Index file {self.index_path} not found.")
+            logger.warning("Index file %s not found.", self.index_path)
             return False
 
-        with open(self.index_path, "rb") as f:
-            data = pickle.load(f)
+        with open(self.index_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-        self.bm25 = data["bm25"]
         self.corpus = data["corpus"]
         self.doc_ids = data["doc_ids"]
+
+        tokenized_corpus = [self._tokenize(doc, remove_stopwords=True) for doc in self.corpus]
+        self.bm25 = BM25Okapi(tokenized_corpus)
+
         self._build_title_tokens()
-        print(f"Index loaded: {len(self.corpus)} documents.")
+        logger.info("Index loaded and BM25 rebuilt: %s documents.", len(self.corpus))
         return True
 
     def build_index(self, cache_dir: str = "data/fever/wiki-cache") -> None:
         """Build BM25 index from cached Wiki pages."""
-        print(f"Building index from {cache_dir}...")
+        logger.info("Building index from %s...", cache_dir)
         self.corpus = []
         self.doc_ids = []
         self.doc_title_tokens = []
 
         if not os.path.exists(cache_dir):
-            print("Cache directory not found. Please run build_fever_cache.py first.")
+            logger.warning("Cache directory not found. Please run build_fever_cache.py first.")
             return
 
         files = os.listdir(cache_dir)
@@ -127,18 +132,18 @@ class RetrievalSystem:
             self.doc_ids.append(doc_id)
 
         if not self.corpus:
-            print("No documents found in cache.")
+            logger.warning("No documents found in cache.")
             return
 
-        print("Tokenizing corpus...")
+        logger.info("Tokenizing corpus...")
         tokenized_corpus = [self._tokenize(doc, remove_stopwords=True) for doc in self.corpus]
 
-        print("Fitting BM25...")
+        logger.info("Fitting BM25...")
         self.bm25 = BM25Okapi(tokenized_corpus)
         self._build_title_tokens()
 
         self.save_index()
-        print(f"Index built with {len(self.corpus)} documents.")
+        logger.info("Index built with %s documents.", len(self.corpus))
 
     def _rerank_score(self, query_tokens: Set[str], query_norm: str, idx: int, bm25_score: float) -> float:
         title_tokens = self.doc_title_tokens[idx] if idx < len(self.doc_title_tokens) else set()
@@ -222,9 +227,9 @@ class RetrievalSystem:
 
     def evaluate(self, test_samples: List[Dict], k_values: List[int] = [1, 5, 10]):
         """Evaluate Hit@k and Recall@k for FEVER page retrieval."""
-        print("Evaluating Retrieval Performance...")
+        logger.info("Evaluating Retrieval Performance...")
         if not self.bm25 and not self.load_index():
-            print("Index not loaded. Skipping evaluation.")
+            logger.warning("Index not loaded. Skipping evaluation.")
             return {}
 
         metrics = {k: {"page_hit": 0, "page_recall": 0} for k in k_values}
@@ -257,8 +262,8 @@ class RetrievalSystem:
                 results[f"Hit@{k} (Page)"] = metrics[k]["page_hit"] / total
                 results[f"Recall@{k} (Page)"] = metrics[k]["page_recall"] / total
 
-        print(f"Evaluated on {total} verifiable samples.")
-        print("Retrieval Metrics:", json.dumps(results, indent=2))
+        logger.info("Evaluated on %s verifiable samples.", total)
+        logger.info("Retrieval Metrics: %s", json.dumps(results, indent=2))
         return results
 
 
@@ -274,8 +279,8 @@ if __name__ == "__main__":
 
         test_query = "The Roman Empire was verified."
         docs = retriever.retrieve(test_query)
-        print(f"Query: {test_query}")
-        print("Retrieved:", docs)
+        logger.info("Query: %s", test_query)
+        logger.info("Retrieved: %s", docs)
 
         train_file = "data/fever/train_normalized.jsonl"
         if os.path.exists(train_file):

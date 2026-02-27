@@ -18,6 +18,31 @@ const tabContents = document.querySelectorAll('.tab-content');
 // State
 let currentTab = 'single';
 
+// Security: HTML entity escaping to prevent XSS
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function safeUrl(url) {
+    if (typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return trimmed;
+        }
+    } catch (_) {
+        // invalid URL
+    }
+    return '';
+}
+
 // Event Listeners
 tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -126,10 +151,12 @@ function getVerdictColorClass(verdict) {
 
 function highlightText(text, claim) {
     if (!text) return '';
+    // Escape HTML first, then apply <mark> tags (prevents XSS + ReDoS)
+    let highlighted = escapeHtml(text);
     const words = claim.split(/\s+/).filter((w) => w.length > 3);
-    let highlighted = text;
     words.forEach((word) => {
-        const regex = new RegExp(`(${word})`, 'gi');
+        const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${safeWord})`, 'gi');
         highlighted = highlighted.replace(regex, '<mark>$1</mark>');
     });
     return highlighted;
@@ -147,9 +174,9 @@ function renderResult(data) {
     for (const [model, details] of Object.entries(data.model_details)) {
         modelDetailsHtml += `
             <div class="model-chip">
-                <strong>${model}</strong>
+                <strong>${escapeHtml(model)}</strong>
                 <div class="val" style="color: ${getVerdictColorClass(details.predicted_label || '').includes('true') ? 'var(--success-color)' : 'var(--error-color)'}">
-                    ${details.predicted_label || '-'}
+                    ${escapeHtml(details.predicted_label || '-')}
                 </div>
                 <div style="font-size:0.8em; margin-top:0.3em; opacity:0.8">
                     Conf: ${(details.credibility_score * 100).toFixed(1)}%
@@ -165,7 +192,7 @@ function renderResult(data) {
             evidenceHtml += `
                 <div class="evidence-item">
                     <div class="evidence-meta">
-                        <span>Doc ID: ${ev.doc_id}</span>
+                        <span>Doc ID: ${escapeHtml(ev.doc_id)}</span>
                         <span>Score: ${ev.score.toFixed(4)}</span>
                     </div>
                     <div>${highlightText(ev.snippet, data.claim)}</div>
@@ -177,8 +204,8 @@ function renderResult(data) {
 
     card.innerHTML = `
         <div class="result-header">
-            <h3 style="max-width: 70%;">${data.claim}</h3>
-            <span class="verdict-badge ${verdictClass}">${data.verdict}</span>
+            <h3 style="max-width: 70%;">${escapeHtml(data.claim)}</h3>
+            <span class="verdict-badge ${verdictClass}">${escapeHtml(data.verdict)}</span>
         </div>
 
         <div class="score-container">
@@ -208,13 +235,16 @@ function renderArticleAnalysis(data) {
     const summaryClass = getVerdictColorClass(data.article_verdict);
     const scorePercent = (data.article_credibility_score * 100).toFixed(1);
 
-    const sourceTitle = data.source?.title || 'Untitled Article';
-    const sourceUrl = data.source?.url ? `<a href="${data.source.url}" target="_blank" rel="noopener noreferrer">${data.source.url}</a>` : 'Text input';
+    const sourceTitle = escapeHtml(data.source?.title || 'Untitled Article');
+    const validatedUrl = safeUrl(data.source?.url || '');
+    const sourceUrl = validatedUrl
+        ? `<a href="${validatedUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.source.url)}</a>`
+        : 'Text input';
 
     summary.innerHTML = `
         <div class="result-header">
             <h3 style="max-width: 70%;">${sourceTitle}</h3>
-            <span class="verdict-badge ${summaryClass}">${data.article_verdict}</span>
+            <span class="verdict-badge ${summaryClass}">${escapeHtml(data.article_verdict)}</span>
         </div>
         <div style="font-size:0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; word-break: break-all;">
             Source: ${sourceUrl}
