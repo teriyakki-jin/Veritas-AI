@@ -45,7 +45,7 @@ class TestApplyTemperature:
 
 class TestLogitsToCredibility:
     def test_output_in_unit_interval(self):
-        logits = np.array([1.0, 2.0, 0.5])  # 3-class: FALSE, HALF, TRUE
+        logits = np.array([1.0, 2.0, 0.5, -1.0, 0.0, 3.0])
         score = logits_to_credibility(logits, LIAR_CREDIBILITY)
         assert 0.0 <= score <= 1.0
 
@@ -108,7 +108,7 @@ class TestFusionEngine:
 
     def test_fuse_all_three_models(self):
         outputs = {
-            "liar":  np.array([0.1, 0.6, 0.3]),  # 3-class: FALSE, HALF, TRUE
+            "liar":  np.array([0.1, 0.1, 0.2, 0.3, 0.2, 0.1]),
             "fever": np.array([1.5, -0.5, 0.2]),
             "fnn":   np.array([-0.3, 1.2]),
         }
@@ -129,7 +129,7 @@ class TestFusionEngine:
 
     def test_fuse_model_details_present(self):
         outputs = {
-            "liar":  np.array([1.0, 1.0, 1.0]),  # 3-class: FALSE, HALF, TRUE
+            "liar":  np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
             "fever": np.array([1.0, 1.0, 1.0]),
         }
         result = self.engine.fuse(outputs)
@@ -150,7 +150,7 @@ class TestFusionEngine:
         engine_biased = FusionEngine(weights={"fnn": 1.0, "liar": 0.0, "fever": 0.0})
         outputs = {
             "fnn":   np.array([10.0, -10.0]),          # strongly fake
-            "liar":  np.array([-10.0, -10.0, 10.0]),   # strongly TRUE (3-class)
+            "liar":  np.array([-10.0, -10.0, -10.0, -10.0, -10.0, 10.0]),  # strongly true
             "fever": np.array([10.0, -10.0, -10.0]),   # strongly supports
         }
         result = engine_biased.fuse(outputs)
