@@ -157,6 +157,31 @@ class RetrievalSystem:
 
         return float(bm25_score) + (2.0 * overlap_ratio) + phrase_bonus
 
+    def _extract_relevant_snippet(self, query_tokens: Set[str], doc_text: str,
+                                   n_sentences: int = 4, max_chars: int = 500) -> str:
+        """Return the most query-relevant sentences from a document.
+
+        Scores each sentence by token overlap with the query and returns the
+        top-N sentences in their original order, capped at max_chars.
+        Falls back to the document head when the document is short.
+        """
+        sentences = re.split(r'(?<=[.!?])\s+', doc_text.strip())
+        if len(sentences) <= n_sentences:
+            return doc_text[:max_chars]
+
+        scored = []
+        for i, sent in enumerate(sentences):
+            sent_tokens = set(self._tokenize(sent, remove_stopwords=True))
+            overlap = len(query_tokens & sent_tokens)
+            scored.append((i, overlap))
+
+        # Sort by overlap descending, break ties by position (earlier = better)
+        scored.sort(key=lambda x: (-x[1], x[0]))
+        top_indices = sorted(idx for idx, _ in scored[:n_sentences])
+
+        snippet = " ".join(sentences[i] for i in top_indices)
+        return snippet[:max_chars] if len(snippet) > max_chars else snippet
+
     def retrieve(self, query: str, k: int = 5) -> List[Dict]:
         """Return top-k evidence docs: {'doc_id', 'score', 'text'}"""
         if not self.bm25 and not self.load_index():
@@ -171,7 +196,7 @@ class RetrievalSystem:
 
         doc_scores = self.bm25.get_scores(query_tokens_list)
 
-        candidate_k = min(len(doc_scores), max(k * 10, 50))
+        candidate_k = min(len(doc_scores), max(k * 20, 100))
         candidate_idxs = np.argsort(doc_scores)[::-1][:candidate_k]
 
         query_tokens = set(query_tokens_list)
@@ -186,11 +211,12 @@ class RetrievalSystem:
         top_n = reranked[:k]
         results = []
         for idx, score in top_n:
+            snippet = self._extract_relevant_snippet(query_tokens, self.corpus[idx])
             results.append(
                 {
                     "doc_id": self.doc_ids[idx],
                     "score": float(score),
-                    "text": self.corpus[idx][:500] + "...",
+                    "text": snippet,
                 }
             )
         return results
