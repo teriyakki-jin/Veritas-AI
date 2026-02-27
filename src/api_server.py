@@ -189,6 +189,23 @@ class EvidenceItem(BaseModel):
     snippet: str
 
 
+class EvidenceItemExplained(BaseModel):
+    doc_id: str
+    score: float
+    snippet: str
+    contribution: float
+    contribution_label: str  # "supports" | "refutes" | "neutral"
+
+
+class ExplainResponse(BaseModel):
+    claim: str
+    credibility_score: float
+    verdict: str
+    evidence: List[EvidenceItemExplained]
+    model_details: dict
+    inference_time_ms: Optional[float] = None
+
+
 class ModelDetail(BaseModel):
     credibility_score: float
     predicted_class: int
@@ -384,6 +401,39 @@ async def verify_claim(req: VerifyRequest, pipeline: FactCheckPipeline = Depends
         raise HTTPException(status_code=500, detail="Verification failed. Please try again.") from exc
 
     return _to_verify_response(result)
+
+
+@app.post("/verify/explain", response_model=ExplainResponse)
+async def verify_explain(req: VerifyRequest, pipeline: FactCheckPipeline = Depends(_get_pipeline)):
+    """Verify a claim and return per-evidence contribution scores (Leave-One-Out)."""
+    claim = _normalize_claim(req.claim)
+
+    try:
+        t0 = time.perf_counter()
+        result = await asyncio.to_thread(pipeline.verify, claim, req.top_k_evidence)
+        contributions = await asyncio.to_thread(
+            pipeline.explain_evidence, claim, result["evidence"], req.top_k_evidence
+        )
+        elapsed = time.perf_counter() - t0
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Explain endpoint error")
+        raise HTTPException(status_code=500, detail="Verification failed. Please try again.") from exc
+
+    evidence_explained = [
+        EvidenceItemExplained(**ev, **contrib)
+        for ev, contrib in zip(result["evidence"], contributions)
+    ]
+
+    return ExplainResponse(
+        claim=result["claim"],
+        credibility_score=result["credibility_score"],
+        verdict=result["verdict"],
+        evidence=evidence_explained,
+        model_details=result["model_details"],
+        inference_time_ms=round(elapsed * 1000, 1),
+    )
 
 
 @app.post("/verify/assist", response_model=VerifyAssistResponse)

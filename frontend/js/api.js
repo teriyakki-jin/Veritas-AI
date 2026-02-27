@@ -39,6 +39,21 @@ export async function verifyClaim(claim, topK = 3) {
     }
 }
 
+export async function verifyClaimExplain(claim, topK = 3) {
+    const response = await fetch(endpoint('/verify/explain'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claim, top_k_evidence: topK })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Verification failed');
+    }
+
+    return await response.json();
+}
+
 export async function verifyBatch(claims, topK = 3) {
     try {
         const response = await fetch(endpoint('/verify/batch'), {

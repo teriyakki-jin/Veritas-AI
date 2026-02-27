@@ -23,7 +23,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from models.retrieval import RetrievalSystem
-from models.fusion import FusionEngine
+from models.fusion import FusionEngine, FEVER_CREDIBILITY, logits_to_credibility
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +230,47 @@ class FactCheckPipeline:
                 model_outputs["fnn"] = logits
 
         return model_outputs
+
+    def explain_evidence(self, claim: str, evidence: List[Dict], top_k: int = 3) -> List[Dict]:
+        """Leave-One-Out contribution of each evidence doc via the FEVER model.
+
+        Returns a list parallel to `evidence`, each item containing:
+          - contribution: float  (positive = doc supports claim, negative = refutes)
+          - contribution_label: "supports" | "refutes" | "neutral"
+        """
+        if "fever" not in self.models or not evidence:
+            return [{"contribution": 0.0, "contribution_label": "neutral"} for _ in evidence]
+
+        temp = self.fusion.temperatures.get("fever", 1.0) if self.fusion else 1.0
+        evidence_texts = [e.get("snippet", e.get("text", "")) for e in evidence]
+        active = evidence_texts[:top_k]
+
+        def _fever_score(texts: List[str]) -> float:
+            inp = claim + " [SEP] " + " [SEP] ".join(texts) if texts else claim
+            logits = self.predict_single("fever", inp)
+            return float(logits_to_credibility(logits, FEVER_CREDIBILITY, temp))
+
+        baseline = _fever_score(active)
+
+        results = []
+        for i in range(len(evidence)):
+            if i >= top_k:
+                results.append({"contribution": 0.0, "contribution_label": "neutral"})
+                continue
+
+            loo = [t for j, t in enumerate(active) if j != i]
+            delta = round(baseline - _fever_score(loo), 4)
+
+            if delta > 0.05:
+                label = "supports"
+            elif delta < -0.05:
+                label = "refutes"
+            else:
+                label = "neutral"
+
+            results.append({"contribution": delta, "contribution_label": label})
+
+        return results
 
     def _enrich_model_details(self, fusion_result: Dict) -> Dict:
         """Add human-readable predicted_label to each model's detail dict (immutable)."""

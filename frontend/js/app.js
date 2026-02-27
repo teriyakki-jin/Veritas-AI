@@ -1,4 +1,4 @@
-import { verifyClaim, verifyBatch, analyzeArticle, verifyClaimStream } from './api.js';
+import { verifyClaim, verifyBatch, analyzeArticle, verifyClaimStream, verifyClaimExplain } from './api.js';
 
 // DOM Elements
 const claimInput = document.getElementById('claimInput');
@@ -94,9 +94,17 @@ function handleSingleVerify() {
                 statusEl.innerHTML = _renderStreamStatus('fusing');
                 break;
             case 'result':
-                statusEl.remove();
-                renderResult(data);
-                setLoading(false);
+                statusEl.innerHTML = _renderStreamStatus('fusing');
+                verifyClaimExplain(claim, 3)
+                    .then((explained) => {
+                        statusEl.remove();
+                        renderResult(explained);
+                    })
+                    .catch(() => {
+                        statusEl.remove();
+                        renderResult(data);  // fallback: show result without explanations
+                    })
+                    .finally(() => setLoading(false));
                 break;
             case 'error':
                 statusEl.remove();
@@ -237,12 +245,30 @@ function renderResult(data) {
     if (data.evidence && data.evidence.length > 0) {
         evidenceHtml = '<div class="evidence-list"><h4>Evidence</h4>';
         data.evidence.forEach((ev) => {
+            const hasContrib = ev.contribution != null;
+            const contribPct = hasContrib ? Math.abs(ev.contribution * 100).toFixed(1) : null;
+            const contribClass = ev.contribution_label === 'supports'
+                ? 'contrib-supports'
+                : ev.contribution_label === 'refutes'
+                    ? 'contrib-refutes'
+                    : 'contrib-neutral';
+            const contribBadge = hasContrib
+                ? `<span class="contrib-badge ${contribClass}">${ev.contribution_label} (${contribPct}%)</span>`
+                : '';
+            const contribBar = hasContrib
+                ? `<div class="contrib-bar-wrap">
+                     <div class="contrib-bar ${contribClass}" style="width:${Math.min(100, Math.abs(ev.contribution) * 300)}%"></div>
+                   </div>`
+                : '';
+
             evidenceHtml += `
                 <div class="evidence-item">
                     <div class="evidence-meta">
                         <span>Doc ID: ${escapeHtml(ev.doc_id)}</span>
-                        <span>Score: ${ev.score.toFixed(4)}</span>
+                        <span>BM25: ${ev.score.toFixed(3)}</span>
+                        ${contribBadge}
                     </div>
+                    ${contribBar}
                     <div>${highlightText(ev.snippet, data.claim)}</div>
                 </div>
             `;
