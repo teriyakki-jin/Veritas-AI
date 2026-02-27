@@ -15,9 +15,24 @@ logger = logging.getLogger(__name__)
 class LIARDataset(FactCheckingDataset):
     def __getitem__(self, idx):
         item = self.samples[idx]
-        text = str(item['text'])
-        label_str = item.get('label_class', 'false')
-        label_id = LIAR_LABEL2ID.get(label_str, 1)
+        meta = item.get('metadata', {})
+        speaker = meta.get('speaker', '').replace('-', ' ').strip()
+        context = meta.get('context', '').strip()
+        subject = meta.get('subject', '').strip()
+        claim = str(item['text'])
+
+        parts = []
+        if speaker:
+            parts.append(f"[SPEAKER] {speaker}")
+        if context:
+            parts.append(f"[CONTEXT] {context}")
+        if subject:
+            parts.append(f"[SUBJECT] {subject}")
+        parts.append(f"[CLAIM] {claim}")
+        text = " ".join(parts)
+
+        label_str = item.get('label_class', 'half-true')
+        label_id = LIAR_LABEL2ID.get(label_str, 1)  # default: HALF (1)
 
         encoding = self.tokenizer(
             text,
@@ -40,7 +55,7 @@ def train_liar():
     output_dir = "models/liar_baseline"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=6)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=3)
 
     train_path = os.path.join(data_dir, "train.jsonl")
     valid_path = os.path.join(data_dir, "valid.jsonl")

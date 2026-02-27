@@ -60,7 +60,7 @@ MODEL_DIRS = {
 }
 
 # Label maps for human-readable output
-LIAR_LABELS = ["pants-fire", "false", "barely-true", "half-true", "mostly-true", "true"]
+LIAR_LABELS = ["FALSE", "HALF-TRUE", "TRUE"]
 FEVER_LABELS = ["SUPPORTS", "REFUTES", "NOT ENOUGH INFO"]
 FNN_LABELS = ["fake", "real"]
 

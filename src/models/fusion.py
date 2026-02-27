@@ -6,7 +6,7 @@ Supported strategies:
   - Temperature-scaled calibration before fusion
 
 Each model outputs probabilities over its own label space:
-  - LIAR:  6 classes (pants-fire, false, barely-true, half-true, mostly-true, true)
+  - LIAR:  3 classes (FALSE, HALF-TRUE, TRUE)
   - FEVER: 3 classes (SUPPORTS, REFUTES, NOT ENOUGH INFO)
   - FNN:   2 classes (fake, real)
 
@@ -20,7 +20,7 @@ from typing import Dict, Optional
 
 
 # Credibility score for each class (higher = more truthful)
-LIAR_CREDIBILITY = {0: 0.0, 1: 0.1, 2: 0.3, 3: 0.5, 4: 0.7, 5: 1.0}
+LIAR_CREDIBILITY = {0: 0.05, 1: 0.5, 2: 0.95}  # FALSE, HALF-TRUE, TRUE
 FEVER_CREDIBILITY = {0: 1.0, 1: 0.0, 2: 0.5}  # SUPPORTS=1, REFUTES=0, NEI=0.5
 FNN_CREDIBILITY = {0: 0.0, 1: 1.0}  # fake=0, real=1
 
@@ -147,9 +147,9 @@ if __name__ == "__main__":
     engine = FusionEngine()
 
     sample_outputs = {
-        "liar": np.array([0.1, 0.1, 0.2, 0.3, 0.2, 0.1]),  # 6 classes
-        "fever": np.array([1.5, -0.5, 0.2]),                  # 3 classes
-        "fnn": np.array([-0.3, 1.2]),                          # 2 classes
+        "liar": np.array([0.1, 0.6, 0.3]),       # 3 classes: FALSE, HALF, TRUE
+        "fever": np.array([1.5, -0.5, 0.2]),      # 3 classes
+        "fnn": np.array([-0.3, 1.2]),             # 2 classes
     }
 
     result = engine.fuse(sample_outputs)

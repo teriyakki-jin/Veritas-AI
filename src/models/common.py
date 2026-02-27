@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 # ── Shared label mappings (single source of truth) ─────────────────────────────
 
 LIAR_LABEL2ID: Dict[str, int] = {
-    "pants-fire": 0,
-    "false":      1,
-    "barely-true": 2,
-    "half-true":  3,
-    "mostly-true": 4,
-    "true":       5,
+    "pants-fire":  0,  # FALSE
+    "false":       0,  # FALSE
+    "barely-true": 0,  # FALSE
+    "half-true":   1,  # HALF
+    "mostly-true": 2,  # TRUE
+    "true":        2,  # TRUE
 }
 
 FEVER_LABEL2ID: Dict[str, int] = {
